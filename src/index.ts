@@ -62,7 +62,24 @@ async function playVideo(video: string, udpConn: MediaUdp) {
     let includeAudio = true;
 
     try {
+        interface Stream {
+            codec_type: string;
+            codec_name: string;
+            pix_fmt: string;
+        }
+
         const metadata = await getInputMetadata(video);
+        const videoStream = metadata.streams.find( (value: Stream) =>
+            value.codec_type === 'video' &&
+            value.codec_name === "h264" &&
+            value.pix_fmt === 'yuv420p'
+        );
+
+        if(!videoStream) {
+            console.log("Unable to copy the codec: No suitable stream found")
+            return;
+        }
+
         const fps = parseInt(videoStream.avg_frame_rate.split('/')[0])/parseInt(videoStream.avg_frame_rate.split('/')[1])
         const width = videoStream.width
         const height = videoStream.height
