@@ -1,0 +1,11 @@
+{
+  "token": "SELF TOKEN HERE",
+  "acceptedAuthors": ["USER_ID_HERE"],
+  "streamOpts": {
+    "bitrateKbps": 6000,
+    "maxBitrateKbps": 8000,
+    "hardware_acceleration": true,
+    "readAtNativeFps": false,
+    "videoCodec": "H264"
+  }
+}
