@@ -1,6 +1,14 @@
+> !Project is stalled till Audio Desync issue was fixed!
+
 # Discord Movie Player
 ## Based on [@dank074/Discord-video-stream](https://github.com/dank074/Discord-video-stream)
 
+### Features:
+- Stream Audio and Video to Discord (like .mp3, .mp4, .mkv) form either local Filesystem or URL
+- Provide local directory for search and playback (like movie and tv show folder from plex/jellyfin)
+- Extended Commands via Discord Bot (like play, pause, resume, stop, search and so on)
+- Discord Status Information on currently playing Stream
+  
 ### Requirements:
 - NodeJS
 - Discord Bot Token (for Bot Commands) [https://discord.com/developers]
@@ -27,9 +35,3 @@ window.webpackChunkdiscord_app.push([
 console.log('%cWorked!', 'font-size: 50px');
 console.log(`%cYou now have your token in the clipboard!`, 'font-size: 16px');
 ```
-
-### Features:
-- Stream Audio and Video to Discord (like .mp3, .mp4, .mkv) form either local Filesystem or URL
-- Provide local directory for search and playback (like movie and tv show folder from plex/jellyfin)
-- Extended Commands via Discord Bot (like play, pause, resume, stop, search and so on)
-- Discord Status Information on currently playing Stream
