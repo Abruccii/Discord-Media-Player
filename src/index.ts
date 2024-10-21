@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 
 //Bots
 const streamer = new Streamer(new Selfbot());
-const client = new Client({ intents: [GatewayIntentBits.Guilds] }) as CustomClient;
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates] }) as CustomClient;
 
 
 client.commands = new Collection<string, Command>();
