@@ -61,7 +61,7 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-Here's a blank template to get started: To avoid retyping too much info. Do a search and replace with your text editor for the following: `Abruccii`, `Discord-Media-Player`, `twitter_handle`, `linkedin_username`, `email_client`, `email`, `project_title`, `project_description`
+Discord Media Player is a Discord Bot based on [discord.js](https://discord.js.org/) and discord.js-selfbot-v13. This bot uses the [Discord-Video-Stream](https://github.com/dank074/Discord-video-stream/) Library by dank074 to stream Video Files via FFMPEG to Discord directly.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
