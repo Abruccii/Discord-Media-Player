@@ -1,5 +1,3 @@
-> !Project is stalled till Audio Desync issue was fixed!
-
 # Discord Movie Player
 ## Based on [@dank074/Discord-video-stream](https://github.com/dank074/Discord-video-stream)
 
