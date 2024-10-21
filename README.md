@@ -1,8 +1,26 @@
-> [!CAUTION]
-> This Bot will break Discord ToS as it is not allowed to use "Self Bots". Don't ever use with main Account!
+<h1 align="center">
+	<img
+		width="300"
+		alt="DMP"
+		src="https://i.imgur.com/C5lny57.png?sanitize=true">
+</h1>
 
-# Discord Movie Player
-## Based on [@dank074/Discord-video-stream](https://github.com/dank074/Discord-video-stream)
+<h3 align="center">
+	Discord Movie Player (SelfBot)
+</h3>
+
+<p align="center">
+	<strong>
+		<a href="#">Docs</a>
+		•
+		<a href="#">Docker</a>
+	</strong>
+</p>
+
+
+##### Based on [@dank074/Discord-video-stream](https://github.com/dank074/Discord-video-stream)
+
+> WARNING: This Bot will likely break Discord ToS. Never use tokens from your main Account!
 
 ### Features:
 - Stream Audio and Video to Discord (like .mp3, .mp4, .mkv) form either local Filesystem or URL
