@@ -1,123 +1,84 @@
-import { Client, StageChannel } from "discord.js-selfbot-v13";
-import { streamLivestreamVideo, MediaUdp, getInputMetadata, inputHasAudio, Streamer, Utils } from "@dank074/discord-video-stream";
+import { GatewayIntentBits, REST, Routes, Collection, Client } from 'discord.js';
+import { Streamer } from "@dank074/discord-video-stream";
+import { Client as Selfbot } from "discord.js-selfbot-v13";
 import config from "./config.json" with {type: "json"};
-import PCancelable from "p-cancelable";
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { CustomClient, Command } from './types.js';
 
-const streamer = new Streamer(new Client());
-let command: PCancelable<string>;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+//Bots
+const streamer = new Streamer(new Selfbot());
+const client = new Client({ intents: [GatewayIntentBits.Guilds] }) as CustomClient;
+
+
+client.commands = new Collection<string, Command>();
+const commands = [];
+
+const commandsPath = path.join(__dirname, 'commands');
+const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+
+for (const file of commandFiles) {
+    const filePath = path.join(commandsPath, file);
+    const command = await import(filePath);
+    
+    if ('data' in command && 'execute' in command) {
+        client.commands.set(command.data.name, command);
+        commands.push(command.data.toJSON());
+    } else {
+        console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+    }
+}
+
+// Slash Commands registrieren
+const rest = new REST({ version: '10' }).setToken(config.botToken);
+
+(async () => {
+    try {
+        console.log('Registriere Slash Commands...');
+
+        await rest.put(
+            Routes.applicationGuildCommands(config.clientId, config.guildId),
+            { body: commands },
+        );
+
+        console.log('Slash Commands erfolgreich registriert');
+    } catch (error) {
+        console.error(error);
+    }
+})();
+
+// Slash Command Interaktionen verarbeiten
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isCommand()) return;
+
+    const command = (client as CustomClient).commands.get(interaction.commandName);
+
+    if (!command) {
+        console.error(`No command matching ${interaction.commandName} was found.`);
+        return;
+    }
+
+    try {
+        await command.execute(interaction, streamer);
+    } catch (error) {
+        console.error(error);
+        await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
+    }
+});
 
 // ready event
 streamer.client.on("ready", () => {
     console.log(`--- ${streamer.client.user.tag} is ready ---`);
 });
 
-// message event
-streamer.client.on("messageCreate", async (msg) => {
-    if (msg.author.bot) return;
-    if (!config.acceptedAuthors.includes(msg.author.id)) return;
-    if (!msg.content) return;
-
-    if (msg.content.startsWith(`!play`)) {
-        const args = parseArgs(msg.content)
-        if (!args) return;
-
-        const channel = msg.author.voice.channel;
-
-        if(!channel) return;
-
-        console.log(`Betrete Voicechannel ${msg.guildId}/${channel.id}`);
-        await streamer.joinVoice(msg.guildId, channel.id);
-
-        if(channel instanceof StageChannel)
-            await streamer.client.user.voice.setSuppressed(false);
-
-        const streamUdpConn = await streamer.createStream({
-            width: config.streamOpts.width,
-            height: config.streamOpts.height,
-            fps: config.streamOpts.fps,
-            bitrateKbps: config.streamOpts.bitrateKbps,
-            maxBitrateKbps: config.streamOpts.maxBitrateKbps,
-            hardwareAcceleratedDecoding: config.streamOpts.hardware_acceleration,
-            videoCodec: Utils.normalizeVideoCodec(config.streamOpts.videoCodec)
-        });
-
-        await playVideo(args.url, streamUdpConn);
-        streamer.stopStream();
-        return;
-    } else if (msg.content.startsWith("!disconnect")) {
-        command?.cancel()
-        streamer.leaveVoice();
-    } else if(msg.content.startsWith("!stop")) {
-        command?.cancel()
-        const stream = streamer.voiceConnection?.streamConnection;
-        if(!stream) return;
-        streamer.stopStream();
-    }
+client.on("ready", () => {
+    console.log(`--- ${client.user.tag} is ready ---`);
 });
 
 // login
 streamer.client.login(config.token);
-
-async function playVideo(video: string, udpConn: MediaUdp) {
-    let includeAudio = true;
-
-    try {
-        interface Stream {
-            codec_type: string;
-            codec_name: string;
-            pix_fmt: string;
-        }
-
-        const metadata = await getInputMetadata(video);
-        const videoStream = metadata.streams.find( (value: Stream) =>
-            value.codec_type === 'video' &&
-            value.codec_name === "h264" &&
-            value.pix_fmt === 'yuv420p'
-        );
-
-        if(!videoStream) {
-            console.log("Unable to copy the codec: No suitable stream found")
-            return;
-        }
-
-        const fps = parseInt(videoStream.avg_frame_rate.split('/')[0])/parseInt(videoStream.avg_frame_rate.split('/')[1])
-        const width = videoStream.width
-        const height = videoStream.height
-        console.log({fps, width, height, "profile": videoStream.profile})
-        udpConn.mediaConnection.streamOptions = { fps, width, height }
-        includeAudio = inputHasAudio(metadata);
-    } catch(e) {
-        console.log(e);
-        return;
-    }
-
-    console.log("Video wird abgespielt");
-
-    udpConn.mediaConnection.setSpeaking(true);
-    udpConn.mediaConnection.setVideoStatus(true);
-    try {
-        command = streamLivestreamVideo(video, udpConn, includeAudio);
-
-        const res = await command;
-        console.log("Wiedergabe beendet " + res);
-    } catch (e) {
-        if (command.isCanceled) {
-            console.log('Aktion abgebrochen');
-        } else {
-            console.log(e);
-        }
-    } finally {
-        udpConn.mediaConnection.setSpeaking(false);
-        udpConn.mediaConnection.setVideoStatus(false);
-    }
-}
-
-function parseArgs(message: string): Args | undefined {
-    const url = message.split(/\s(.+)/)[1];
-    return { url }
-}
-
-type Args = {
-    url: string;
-}
- 
+client.login(config.botToken);

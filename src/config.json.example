@@ -1,0 +1,17 @@
+{
+    "botToken": "Discord Bot Token",
+    "clientId": "Discord Bot ClientID",
+    "token": "Discord Selfbot Token",
+    "guildId": "Guild ID",
+    "acceptedAuthors": ["AllowsUsersID"],
+    "streamOpts": {
+        "width": 1920,
+        "height": 1080,
+        "fps": 24,
+        "bitrateKbps": 4000,
+        "maxBitrateKbps": 6500,
+        "hardware_acceleration": true,
+        "readNativeFPS": true,
+        "minimizeLatency": false
+    }
+}
