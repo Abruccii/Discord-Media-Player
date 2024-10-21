@@ -57,13 +57,10 @@ client.on('interactionCreate', async interaction => {
 
     const command = (client as CustomClient).commands.get(interaction.commandName);
 
-    if (!command) {
-        console.error(`No command matching ${interaction.commandName} was found.`);
-        return;
-    }
+    if (!command) return;
 
     try {
-        await command.execute(interaction, streamer);
+        await command.execute(interaction, streamer, client);
     } catch (error) {
         console.error(error);
         await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });

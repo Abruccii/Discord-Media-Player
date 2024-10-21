@@ -1,4 +1,4 @@
-import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder, Client, ActivityType } from 'discord.js';
 import { streamLivestreamVideo, MediaUdp, getInputMetadata, inputHasAudio, Streamer, Utils } from "@dank074/discord-video-stream";
 import { StageChannel } from "discord.js-selfbot-v13";
 import { StreamType, createAudioPlayer, createAudioResource, joinVoiceChannel, AudioPlayerStatus, DiscordGatewayAdapterCreator } from '@discordjs/voice';
@@ -7,6 +7,14 @@ import { Readable } from 'stream';
 
 import ytdl from '@distube/ytdl-core';
 import config from "../config.json" with {type: "json"};
+
+let currentTrack: {
+    title: string;
+    duration: number;
+    startTime: number;
+} | null = null;
+
+let client: Client;
 
 export const data = new SlashCommandBuilder()
     .setName('play')
@@ -17,7 +25,8 @@ export const data = new SlashCommandBuilder()
             .setRequired(true)
     );
 
-export async function execute(interaction: ChatInputCommandInteraction, streamer: Streamer) {
+export async function execute(interaction: ChatInputCommandInteraction, streamer: Streamer, botClient: Client) {
+    client = botClient;
     const filename = interaction.options.getString('filename');
     if (!filename) {
         return interaction.reply({
@@ -137,7 +146,14 @@ async function playAudio(audio: string, interaction: ChatInputCommandInteraction
 
     try {
         let stream: any;
+        let trackInfo: { title: string; duration: number } | null = null;
+
         if (ytdl.validateURL(audio)) {
+            const info = await ytdl.getInfo(audio);
+            trackInfo = {
+                title: info.videoDetails.title,
+                duration: parseInt(info.videoDetails.lengthSeconds)
+            };
             stream = ytdl(audio, { 
                 filter: 'audioonly',
                 highWaterMark: 1 << 25,
@@ -155,12 +171,23 @@ async function playAudio(audio: string, interaction: ChatInputCommandInteraction
 
         connection.subscribe(player);
 
+        if (trackInfo) {
+            currentTrack = {
+                ...trackInfo,
+                startTime: Date.now()
+            };
+            updateBotStatus();
+        }
+    
         player.on(AudioPlayerStatus.Playing, () => {
             console.log('Der AudioPlayer hat mit der Wiedergabe begonnen.');
+            updateBotStatus();
         });
-
+    
         player.on(AudioPlayerStatus.Idle, () => {
             console.log('Der AudioPlayer hat die Wiedergabe beendet.');
+            currentTrack = null;
+            updateBotStatus();
             connection.destroy();
         });
 
@@ -177,3 +204,24 @@ async function playAudio(audio: string, interaction: ChatInputCommandInteraction
         connection.destroy();
     }
 }
+
+function updateBotStatus() {
+    if (!client) return;
+
+    if (currentTrack) {
+        const elapsedTime = Math.floor((Date.now() - currentTrack.startTime) / 1000);
+        const remainingTime = Math.max(0, currentTrack.duration - elapsedTime);
+        const status = `${currentTrack.title} | ${formatTime(elapsedTime)}/${formatTime(currentTrack.duration)}`;
+        client.user?.setActivity(status, { type: ActivityType.Playing });
+    } else {
+        client.user?.setActivity();
+    }
+}
+
+function formatTime(seconds: number): string {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+setInterval(updateBotStatus, 10000);
