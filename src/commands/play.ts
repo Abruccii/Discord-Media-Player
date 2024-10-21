@@ -1,11 +1,6 @@
 import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder, Client, ActivityType } from 'discord.js';
 import { streamLivestreamVideo, MediaUdp, getInputMetadata, inputHasAudio, Streamer, Utils } from "@dank074/discord-video-stream";
 import { StageChannel } from "discord.js-selfbot-v13";
-import { StreamType, createAudioPlayer, createAudioResource, joinVoiceChannel, AudioPlayerStatus, DiscordGatewayAdapterCreator } from '@discordjs/voice';
-import { got } from 'got';
-import { Readable } from 'stream';
-
-import ytdl from '@distube/ytdl-core';
 import config from "../config.json" with {type: "json"};
 
 let currentTrack: {
@@ -92,57 +87,31 @@ async function playVideo(video: string, udpConn: MediaUdp) {
     let command: ReturnType<typeof streamLivestreamVideo>;
     let stream: any;
 
-    if (ytdl.validateURL(video)) {
-        const info = await ytdl.getInfo(video);
-        udpConn.mediaConnection.setSpeaking(true);
-        udpConn.mediaConnection.setVideoStatus(true);
-        try {
-            stream = ytdl(video, { 
-                highWaterMark: 1 << 25,
-                quality: 'highestaudio'
-            });    
+    
+    try {
+        const metadata = await getInputMetadata(video);
+        includeAudio = inputHasAudio(metadata);
+    } catch(e) {
+        console.log(e);
+        return;
+    }
 
-            command = streamLivestreamVideo(stream, udpConn, includeAudio);
+    udpConn.mediaConnection.setSpeaking(true);
+    udpConn.mediaConnection.setVideoStatus(true);
+    try {
+        command = streamLivestreamVideo(video, udpConn, includeAudio);
 
-            const res = await command;
-            console.log("Finished playing video " + res);
-        } catch (e) {
-            if (command && command.isCanceled) {
-                // Handle the cancelation here
-                console.log('Operation was canceled');
-            } else {
-                console.log(e);
-            }
-        } finally {
-            udpConn.mediaConnection.setSpeaking(false);
-            udpConn.mediaConnection.setVideoStatus(false);
-        }
-    } else {
-        try {
-            const metadata = await getInputMetadata(video);
-            includeAudio = inputHasAudio(metadata);
-        } catch(e) {
+        const res = await command;
+        console.log("Finished playing video " + res);
+    } catch (e) {
+        if (command && command.isCanceled) {
+            // Handle the cancelation here
+            console.log('Operation was canceled');
+        } else {
             console.log(e);
-            return;
         }
-
-        udpConn.mediaConnection.setSpeaking(true);
-        udpConn.mediaConnection.setVideoStatus(true);
-        try {
-            command = streamLivestreamVideo(video, udpConn, includeAudio);
-
-            const res = await command;
-            console.log("Finished playing video " + res);
-        } catch (e) {
-            if (command && command.isCanceled) {
-                // Handle the cancelation here
-                console.log('Operation was canceled');
-            } else {
-                console.log(e);
-            }
-        } finally {
-            udpConn.mediaConnection.setSpeaking(false);
-            udpConn.mediaConnection.setVideoStatus(false);
-        }
+    } finally {
+        udpConn.mediaConnection.setSpeaking(false);
+        udpConn.mediaConnection.setVideoStatus(false);
     }
 }

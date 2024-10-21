@@ -2,13 +2,17 @@ import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder, Client, 
 import { streamLivestreamVideo, MediaUdp, getInputMetadata, inputHasAudio, Streamer } from "@dank074/discord-video-stream";
 import { StageChannel } from "discord.js-selfbot-v13";
 import { StreamType, createAudioPlayer, createAudioResource, joinVoiceChannel, AudioPlayerStatus, DiscordGatewayAdapterCreator } from '@discordjs/voice';
-import ytdl from '@distube/ytdl-core';
+import ytdl from '@abrucci/ytdl-core';
 import prism from 'prism-media';
 
 import config from "../config.json" with {type: "json"};
 
-const COOKIE = '';
-
+const agentOptions = {
+pipelining: 5,
+maxRedirections: 0
+};
+  
+const agent = ytdl.createAgent(config.ytCookies, agentOptions);
 
 let currentTrack: {
     title: string;
@@ -115,11 +119,7 @@ async function playVideo(video: string, udpConn: MediaUdp) {
             stream = ytdl(video, {
                 highWaterMark: 1 << 25,
                 quality: 'highestaudio',
-                requestOptions: {
-                    headers: {
-                      cookie: config.ytCookieString
-                    },
-                  }
+                agent
             });    
 
             command = streamLivestreamVideo(stream, udpConn, includeAudio);
