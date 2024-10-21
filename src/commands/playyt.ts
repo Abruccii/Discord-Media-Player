@@ -7,6 +7,9 @@ import prism from 'prism-media';
 
 import config from "../config.json" with {type: "json"};
 
+const COOKIE = '';
+
+
 let currentTrack: {
     title: string;
     duration: number;
@@ -109,39 +112,17 @@ async function playVideo(video: string, udpConn: MediaUdp) {
         udpConn.mediaConnection.setSpeaking(true);
         udpConn.mediaConnection.setVideoStatus(true);
         try {
-            stream = ytdl(video, { 
+            stream = ytdl(video, {
                 highWaterMark: 1 << 25,
-                quality: 'highestaudio'
+                quality: 'highestaudio',
+                requestOptions: {
+                    headers: {
+                      cookie: config.ytCookieString
+                    },
+                  }
             });    
 
             command = streamLivestreamVideo(stream, udpConn, includeAudio);
-
-            const res = await command;
-            console.log("Finished playing video " + res);
-        } catch (e) {
-            if (command && command.isCanceled) {
-                // Handle the cancelation here
-                console.log('Operation was canceled');
-            } else {
-                console.log(e);
-            }
-        } finally {
-            udpConn.mediaConnection.setSpeaking(false);
-            udpConn.mediaConnection.setVideoStatus(false);
-        }
-    } else {
-        try {
-            const metadata = await getInputMetadata(video);
-            includeAudio = inputHasAudio(metadata);
-        } catch(e) {
-            console.log(e);
-            return;
-        }
-
-        udpConn.mediaConnection.setSpeaking(true);
-        udpConn.mediaConnection.setVideoStatus(true);
-        try {
-            command = streamLivestreamVideo(video, udpConn, includeAudio);
 
             const res = await command;
             console.log("Finished playing video " + res);
@@ -184,7 +165,12 @@ async function playAudio(audio: string, interaction: ChatInputCommandInteraction
         const stream = ytdl(audio, { 
             filter: 'audioonly',
             highWaterMark: 1 << 26, // Erhöhter Wert für besseres Buffering
-            quality: 'highestaudio'
+            quality: 'highestaudio',
+            requestOptions: {
+                headers: { 
+                    Cookie: '__Secure-YEC=Cgtuc2Vna2NVOWRQayjYtNq4BjIKCgJERRIEEgAgWA%3D%3D;__Secure-3PSID=g.a000pQiRUCElmaa6O0455amucyuK3AFEiw7b96ZCcsRr_eUBr-geGF2l373iGPkMnCHro287-QACgYKAf4SARESFQHGX2MiuO5VEKvfR-QXWW1K3jLWChoVAUF8yKoVFTQTpm66cGn45glcTo-H0076;__Secure-1PSIDTS=sidts-CjIBQlrA-FazDLn71TkeVd1cB1FEh2qYu4fK1qgUmEI3cFExFz89Z51NNDoXatKEqBR7QxAA;SAPISID=4M2jgx7SUmJd1TZf/AogzqmkL-6GhGzmke;__Secure-1PSIDCC=AKEyXzXwEMt1Oe_LXUPw_voaAoZ4iSz55MZD8tjTWDWevBlvF-9VuM1MjYnZqA74t33ib2wngA;SSID=AaPs5UnnFOw_bx8nH;__Secure-1PAPISID=4M2jgx7SUmJd1TZf/AogzqmkL-6GhGzmke;__Secure-1PSID=g.a000pQiRUCElmaa6O0455amucyuK3AFEiw7b96ZCcsRr_eUBr-geviNriJ6gVOExNfBhTvttfgACgYKAeoSARESFQHGX2MiAr0Z8bxix6p4NB6e5GTvTBoVAUF8yKpugD3Eq1TkrH2UpVJEP_XX0076;__Secure-3PAPISID=4M2jgx7SUmJd1TZf/AogzqmkL-6GhGzmke;__Secure-3PSIDCC=AKEyXzVw3EwVeChzN7_qTMJYNTLOpWw2mncJmVvGWePzj0zswNzsw4c3Ky0xLWDdDthFJ2cj0g;__Secure-3PSIDTS=sidts-CjIBQlrA-FazDLn71TkeVd1cB1FEh2qYu4fK1qgUmEI3cFExFz89Z51NNDoXatKEqBR7QxAA;LOGIN_INFO=AFmmF2swRQIhAOVE2MYuGtvrAij0sP3CGZgSnS7GzMrgSIrD4TZdrwUzAiAiP6szBKdn1EHAQcJ7bKPAdcv14u7s8UPYOUB0bI86Pg:QUQ3MjNmelE5eGVneFQySUFCR3dTX1QycnR6S0lCNW5RSV95Yjk3bDJiazl4ZkU3aTc3Y1NycHlNN0QtRWVBd1htbE1Gc2JvaHdqWVB0bXZFaTM2UmFTem85dzlYeWhScWJ0ZmFrU1d3TTk1dmZvbnJnanQ3dUlQdm1RZlRveGNPakI0NWpqTC15a2xaMm5Fb3dpemhuc1lUcHJKY1o5eDBn;PREF=f6=40000000&tz=Europe.Berlin&f5=30000&f7=100'
+                 }
+            }
         });
 
         // Verwenden Sie prism-media für eine effizientere Audio-Verarbeitung
