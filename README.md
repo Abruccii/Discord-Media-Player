@@ -1,3 +1,6 @@
+> [!CAUTION]
+> This Bot will break Discord ToS as it is not allowed to use "Self Bots". Don't ever use with main Account!
+
 # Discord Movie Player
 ## Based on [@dank074/Discord-video-stream](https://github.com/dank074/Discord-video-stream)
 
