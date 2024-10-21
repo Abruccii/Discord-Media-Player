@@ -42,9 +42,6 @@ export async function execute(interaction: ChatInputCommandInteraction, streamer
         });
     }
 
-    console.log(`Guild Member ID: ${interaction.member.id}`);
-    console.log(`Guild ID: ${interaction.guildId}`);
-
     const guildMember = await interaction.guild?.members.fetch(interaction.member.id);
 
     if (!guildMember) {
@@ -68,27 +65,23 @@ export async function execute(interaction: ChatInputCommandInteraction, streamer
     await interaction.deferReply();
     await interaction.editReply(`Spiele ${filename} in ${voiceChannel.name} ab...`);
 
-    if (filename.endsWith('.mp3') || filename.startsWith('https://youtu.be/') || filename.startsWith('https://www.youtube.com/')  || filename.startsWith('https://www.youtu.be/') || filename.startsWith('https://www.youtube.com/')) {
-        await playAudio(filename, interaction);
-    } else {
-        await streamer.joinVoice(interaction.guildId!, voiceChannel.id);
+    await streamer.joinVoice(interaction.guildId!, voiceChannel.id);
 
-        if (voiceChannel instanceof StageChannel) {
-            await streamer.client.user.voice.setSuppressed(false);
-        }
-
-        const streamUdpConn = await streamer.createStream({
-            width: config.streamOpts.width, 
-            height: config.streamOpts.height, 
-            fps: config.streamOpts.fps, 
-            bitrateKbps: config.streamOpts.bitrateKbps,
-            maxBitrateKbps: config.streamOpts.maxBitrateKbps, 
-            hardwareAcceleratedDecoding: config.streamOpts.hardware_acceleration,
-            videoCodec: 'H264'
-        });
-
-        await playVideo(filename, streamUdpConn);
+    if (voiceChannel instanceof StageChannel) {
+        await streamer.client.user.voice.setSuppressed(false);
     }
+
+    const streamUdpConn = await streamer.createStream({
+        width: config.streamOpts.width, 
+        height: config.streamOpts.height, 
+        fps: config.streamOpts.fps, 
+        bitrateKbps: config.streamOpts.bitrateKbps,
+        maxBitrateKbps: config.streamOpts.maxBitrateKbps, 
+        hardwareAcceleratedDecoding: config.streamOpts.hardware_acceleration,
+        videoCodec: 'H264'
+    });
+
+    await playVideo(filename, streamUdpConn);
 
     streamer.stopStream();
     await interaction.editReply(`Wiedergabe von ${filename} beendet.`);
@@ -97,131 +90,59 @@ export async function execute(interaction: ChatInputCommandInteraction, streamer
 async function playVideo(video: string, udpConn: MediaUdp) {
     let includeAudio = true;
     let command: ReturnType<typeof streamLivestreamVideo>;
+    let stream: any;
 
-
-    try {
-        const metadata = await getInputMetadata(video);
-        includeAudio = inputHasAudio(metadata);
-    } catch(e) {
-        console.log(e);
-        return;
-    }
-
-    console.log("Started playing video");
-
-    udpConn.mediaConnection.setSpeaking(true);
-    udpConn.mediaConnection.setVideoStatus(true);
-    try {
-        command = streamLivestreamVideo(video, udpConn, includeAudio);
-
-        const res = await command;
-        console.log("Finished playing video " + res);
-    } catch (e) {
-        if (command && command.isCanceled) {
-            // Handle the cancelation here
-            console.log('Operation was canceled');
-        } else {
-            console.log(e);
-        }
-    } finally {
-        udpConn.mediaConnection.setSpeaking(false);
-        udpConn.mediaConnection.setVideoStatus(false);
-    }
-}
-
-async function playAudio(audio: string, interaction: ChatInputCommandInteraction) {
-    const voiceChannel = (interaction.member as GuildMember).voice.channel;
-    if (!voiceChannel) {
-        await interaction.editReply('Du musst in einem Sprachkanal sein, um Musik abzuspielen.');
-        return;
-    }
-
-    const connection = joinVoiceChannel({
-        channelId: voiceChannel.id,
-        guildId: voiceChannel.guild.id,
-        adapterCreator: voiceChannel.guild.voiceAdapterCreator as DiscordGatewayAdapterCreator,
-    });
-
-    const player = createAudioPlayer();
-
-    try {
-        let stream: any;
-        let trackInfo: { title: string; duration: number } | null = null;
-
-        if (ytdl.validateURL(audio)) {
-            const info = await ytdl.getInfo(audio);
-            trackInfo = {
-                title: info.videoDetails.title,
-                duration: parseInt(info.videoDetails.lengthSeconds)
-            };
-            stream = ytdl(audio, { 
-                filter: 'audioonly',
+    if (ytdl.validateURL(video)) {
+        const info = await ytdl.getInfo(video);
+        udpConn.mediaConnection.setSpeaking(true);
+        udpConn.mediaConnection.setVideoStatus(true);
+        try {
+            stream = ytdl(video, { 
                 highWaterMark: 1 << 25,
                 quality: 'highestaudio'
-            });
-        } else if (audio.startsWith('http://') || audio.startsWith('https://')) {
-            stream = got.stream(audio);
-        } else {
-            const { createReadStream } = await import('fs');
-            stream = createReadStream(audio);
+            });    
+
+            command = streamLivestreamVideo(stream, udpConn, includeAudio);
+
+            const res = await command;
+            console.log("Finished playing video " + res);
+        } catch (e) {
+            if (command && command.isCanceled) {
+                // Handle the cancelation here
+                console.log('Operation was canceled');
+            } else {
+                console.log(e);
+            }
+        } finally {
+            udpConn.mediaConnection.setSpeaking(false);
+            udpConn.mediaConnection.setVideoStatus(false);
         }
-
-        const resource = createAudioResource(stream, { inputType: StreamType.Arbitrary });
-        player.play(resource);
-
-        connection.subscribe(player);
-
-        if (trackInfo) {
-            currentTrack = {
-                ...trackInfo,
-                startTime: Date.now()
-            };
-            updateBotStatus();
-        }
-    
-        player.on(AudioPlayerStatus.Playing, () => {
-            console.log('Der AudioPlayer hat mit der Wiedergabe begonnen.');
-            updateBotStatus();
-        });
-    
-        player.on(AudioPlayerStatus.Idle, () => {
-            console.log('Der AudioPlayer hat die Wiedergabe beendet.');
-            currentTrack = null;
-            updateBotStatus();
-            connection.destroy();
-        });
-
-        player.on('error', error => {
-            console.error('Fehler bei der Audiowiedergabe:', error);
-            connection.destroy();
-        });
-
-        await interaction.editReply('Audiowiedergabe gestartet.');
-
-    } catch (error) {
-        console.error('Fehler beim Abspielen des Audios:', error);
-        await interaction.editReply('Es gab einen Fehler beim Abspielen des Audios.');
-        connection.destroy();
-    }
-}
-
-function updateBotStatus() {
-    if (!client) return;
-
-    if (currentTrack) {
-        const elapsedTime = Math.floor((Date.now() - currentTrack.startTime) / 1000);
-        const remainingTime = Math.max(0, currentTrack.duration - elapsedTime);
-        const status = `${currentTrack.title} | ${formatTime(elapsedTime)}/${formatTime(currentTrack.duration)}`;
-        client.user?.setActivity(status, { type: ActivityType.Playing });
     } else {
-        client.user?.setActivity();
+        try {
+            const metadata = await getInputMetadata(video);
+            includeAudio = inputHasAudio(metadata);
+        } catch(e) {
+            console.log(e);
+            return;
+        }
+
+        udpConn.mediaConnection.setSpeaking(true);
+        udpConn.mediaConnection.setVideoStatus(true);
+        try {
+            command = streamLivestreamVideo(video, udpConn, includeAudio);
+
+            const res = await command;
+            console.log("Finished playing video " + res);
+        } catch (e) {
+            if (command && command.isCanceled) {
+                // Handle the cancelation here
+                console.log('Operation was canceled');
+            } else {
+                console.log(e);
+            }
+        } finally {
+            udpConn.mediaConnection.setSpeaking(false);
+            udpConn.mediaConnection.setVideoStatus(false);
+        }
     }
 }
-
-function formatTime(seconds: number): string {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-}
-
-setInterval(updateBotStatus, 10000);
